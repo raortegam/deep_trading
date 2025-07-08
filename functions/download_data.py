@@ -23,13 +23,57 @@ class TradingDataDownloader:
     def download_data(self):
         """Descarga datos básicos OHLCV"""
         try:
-            ticker = yf.Ticker(self.symbol)
-            self.data = ticker.history(period=self.period)
+            # Método alternativo más robusto
+            self.data = yf.download(self.symbol, period=self.period, progress=False)
+            
+            # Si falla el primer método, intentar con Ticker
+            if self.data.empty:
+                ticker = yf.Ticker(self.symbol)
+                self.data = ticker.history(period=self.period, auto_adjust=True, prepost=True)
+            
+            # Limpiar datos
+            self.data = self.data.dropna()
+            
+            # Asegurar que las columnas están en el formato correcto
+            if isinstance(self.data.columns, pd.MultiIndex):
+                self.data.columns = self.data.columns.get_level_values(0)
+            
             print(f"✓ Datos descargados para {self.symbol}: {len(self.data)} registros")
+            print(f"✓ Período: {self.data.index[0]} a {self.data.index[-1]}")
             return True
+            
         except Exception as e:
             print(f"✗ Error descargando datos: {e}")
-            return False
+            print("Intentando método alternativo...")
+            
+            # Método alternativo con fechas específicas
+            try:
+                end_date = datetime.now()
+                if self.period == '1y':
+                    start_date = end_date - timedelta(days=365)
+                elif self.period == '2y':
+                    start_date = end_date - timedelta(days=730)
+                elif self.period == '5y':
+                    start_date = end_date - timedelta(days=1825)
+                else:
+                    start_date = end_date - timedelta(days=730)  # Default 2 años
+                
+                self.data = yf.download(self.symbol, 
+                                      start=start_date, 
+                                      end=end_date, 
+                                      progress=False)
+                
+                if not self.data.empty:
+                    self.data = self.data.dropna()
+                    print(f"✓ Datos descargados (método alternativo): {len(self.data)} registros")
+                    return True
+                else:
+                    print("✗ No se pudieron descargar datos")
+                    return False
+                    
+            except Exception as e2:
+                print(f"✗ Error en método alternativo: {e2}")
+                return False
     
     def calculate_technical_indicators(self):
         """Calcula indicadores técnicos para predicción de dirección"""
