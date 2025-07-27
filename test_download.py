@@ -8,6 +8,7 @@ try:
     downloader = TradingDataDownloader("AAPL", period='1y')
     print("Downloader created successfully")
     
+    
     # Try to download the data
     success = downloader.download_data()
     print(f"Download successful: {success}")
